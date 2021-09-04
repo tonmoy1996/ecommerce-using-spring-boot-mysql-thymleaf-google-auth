@@ -1,19 +1,33 @@
 package com.spring.ecommerce.controller;
 
+import com.spring.ecommerce.dto.ProductDTO;
 import com.spring.ecommerce.model.Category;
+import com.spring.ecommerce.model.Product;
 import com.spring.ecommerce.service.CategoryService;
-import org.dom4j.rule.Mode;
+import com.spring.ecommerce.service.ProductService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+
+import javax.validation.Valid;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.UUID;
 
 @Controller
 @RequestMapping("/admin")
 public class AdminController {
+    public static String uploadDirectory = System.getProperty("user.dir") + "/src/main/resources/static/productImages";
     @Autowired
     private CategoryService categoryService;
+    @Autowired
+    private ProductService productService;
 
     @GetMapping("")
     public String adminHome() {
@@ -35,7 +49,10 @@ public class AdminController {
     }
 
     @PostMapping("/categories/add")
-    public String postCatForm(@ModelAttribute("category") Category category, RedirectAttributes redirectAttributes) {
+    public String postCatForm(@Valid @ModelAttribute("category") Category category, BindingResult bindingResult, RedirectAttributes redirectAttributes) {
+        if (bindingResult.hasErrors()) {
+            return "redirect:/admin/categories/add";
+        }
         if (category.getId() != null) {
             Category existing = categoryService.getcategoryById(category.getId());
             existing.setName(category.getName());
@@ -69,14 +86,43 @@ public class AdminController {
     }
 
 
-    //product function
+    //product section
     @GetMapping("/products")
-    public String getProduct() {
+    public String getProduct(Model model) {
+        model.addAttribute("products", productService.getAllProduct());
         return "products";
     }
 
     @GetMapping("/products/add")
-    public String getProductForm() {
+    public String getProductForm(Model model) {
+        model.addAttribute("productDTO", new ProductDTO());
+        model.addAttribute("categories", categoryService.getAllCategory());
         return "productsAdd";
     }
+
+    @PostMapping("/products/add")
+    public String saveProduct(@ModelAttribute("productDTO")
+                                      ProductDTO productDTO, @RequestParam("productImage") MultipartFile file,
+                              @RequestParam("image") String image) throws IOException {
+        Product product = new Product();
+        product.setId(productDTO.getId());
+        product.setName(productDTO.getName());
+        product.setPrice(productDTO.getPrice());
+        product.setWeight(productDTO.getWeight());
+        product.setDescription(productDTO.getDescription());
+        product.setCategory(categoryService.getcategoryById((long) productDTO.getCategoryId()));
+        //image
+        String imageUUID;
+        if (!file.isEmpty()) {
+            imageUUID = String.valueOf(UUID.randomUUID()) + file.getOriginalFilename();
+            Path fileNameAndPath = Paths.get(uploadDirectory, imageUUID);
+            Files.write(fileNameAndPath, file.getBytes());
+        } else {
+            imageUUID = image;
+        }
+        product.setImage(imageUUID);
+        productService.addProduct(product);
+        return "redirect:/admin/products";
+    }
+
 }
