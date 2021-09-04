@@ -18,6 +18,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Optional;
 import java.util.UUID;
 
 @Controller
@@ -110,11 +111,11 @@ public class AdminController {
         product.setPrice(productDTO.getPrice());
         product.setWeight(productDTO.getWeight());
         product.setDescription(productDTO.getDescription());
-        product.setCategory(categoryService.getcategoryById((long) productDTO.getCategoryId()));
+        product.setCategory(categoryService.getcategoryById(productDTO.getCategoryId()));
         //image
         String imageUUID;
         if (!file.isEmpty()) {
-            imageUUID = String.valueOf(UUID.randomUUID()) + file.getOriginalFilename();
+            imageUUID = UUID.randomUUID() + "-" + file.getOriginalFilename();
             Path fileNameAndPath = Paths.get(uploadDirectory, imageUUID);
             Files.write(fileNameAndPath, file.getBytes());
         } else {
@@ -124,5 +125,33 @@ public class AdminController {
         productService.addProduct(product);
         return "redirect:/admin/products";
     }
+
+    @GetMapping("/product/update/{id}")
+    public String productUpdate(@PathVariable Long id, Model model) {
+        Product product = productService.getProductById(id).get();
+        ProductDTO productDTO = new ProductDTO();
+        productDTO.setId(product.getId());
+        productDTO.setName(product.getName());
+        productDTO.setPrice(product.getPrice());
+        productDTO.setWeight(product.getWeight());
+        productDTO.setDescription(product.getDescription());
+        productDTO.setImage(product.getImage());
+        productDTO.setCategoryId(product.getCategory().getId());
+        model.addAttribute("productDTO", productDTO);
+        model.addAttribute("categories", categoryService.getAllCategory());
+        return "productsAdd";
+    }
+
+    @GetMapping("/product/delete/{id}")
+    public String deleteProduct(@PathVariable("id") Long id, RedirectAttributes redirectAttributes) {
+        Optional<Product> product = productService.getProductById(id);
+        if (product.isEmpty()) {
+            redirectAttributes.addFlashAttribute("error", "Product  Not Found");
+        }
+        productService.deleteProduct(id);
+        redirectAttributes.addFlashAttribute("success", "Product Deleted Successfully");
+        return "redirect:/admin/products";
+    }
+
 
 }

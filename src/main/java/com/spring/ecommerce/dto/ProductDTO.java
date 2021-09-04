@@ -13,5 +13,5 @@ public class ProductDTO {
     @Column(length = 1023)
     private String description;
     private String image;
-    private int categoryId;
+    private Long categoryId;
 }
